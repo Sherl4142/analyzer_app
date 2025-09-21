@@ -1,7 +1,9 @@
 # main.py
 import streamlit as st
-import pandas as pd
+import os
+import glob
 import fitz  # PyMuPDF
+import pandas as pd
 import spacy
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -18,18 +20,16 @@ required_skills = [
 # -------------------------
 # Helper functions
 # -------------------------
-def extract_text_from_pdf(pdf_file) -> str:
-    """Extract text from a PDF file uploaded via Streamlit."""
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extract text from a PDF file."""
     text = ""
     try:
-        # PyMuPDF can read file-like objects directly
-        doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+        doc = fitz.open(pdf_path)
         for page in doc:
             text += page.get_text()
         doc.close()
-        pdf_file.seek(0)  # Reset file pointer after reading
     except Exception as e:
-        st.error(f"Error reading {pdf_file.name}: {e}")
+        print(f"Error reading {pdf_path}: {e}")
     return text
 
 def clean_text_spacy(text: str) -> str:
@@ -59,15 +59,10 @@ def score_resume(text: str, required_skills: list) -> pd.Series:
 # -------------------------
 st.set_page_config(page_title="AI Resume Evaluator", page_icon="📄", layout="wide")
 st.title("AI Resume Evaluator")
-st.markdown(
-    "Automate resume evaluation against job requirements at scale. "
-    "Upload resumes and get instant insights!"
-)
+st.markdown("Automate resume evaluation against job requirements at scale. Upload resumes and get instant insights!")
 
 # Upload multiple resumes
-uploaded_files = st.file_uploader(
-    "Upload PDF resumes", type=["pdf"], accept_multiple_files=True
-)
+uploaded_files = st.file_uploader("Upload PDF resumes", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     data = []
@@ -85,51 +80,34 @@ if uploaded_files:
 
     df_resumes = pd.DataFrame(data)
 
-    # -------------------------
-    # Sidebar options
-    # -------------------------
-    st.sidebar.header("Analysis Options")
-    show_table = st.sidebar.checkbox("Show Evaluation Table", True)
-    show_fit_chart = st.sidebar.checkbox("Fit Level Distribution", True)
-    show_score_chart = st.sidebar.checkbox("Relevance Score Chart", True)
-    show_missing_skills = st.sidebar.checkbox("Missing Skills", True)
-    show_matching_skills = st.sidebar.checkbox("Matching Skills", True)
+    st.subheader("Resume Evaluation Results")
+    st.dataframe(df_resumes)
 
-    # Display based on sidebar selection
-    if show_table:
-        st.subheader("Resume Evaluation Results")
-        st.dataframe(df_resumes)
+    # Fit level distribution pie chart
+    st.subheader("Fit Level Distribution")
+    fig, ax = plt.subplots()
+    df_resumes["fit_level"].value_counts().plot.pie(autopct='%1.1f%%', ax=ax)
+    plt.ylabel("")
+    st.pyplot(fig)
 
-    if show_fit_chart:
-        st.subheader("Fit Level Distribution")
-        fig, ax = plt.subplots()
-        df_resumes["fit_level"].value_counts().plot.pie(autopct='%1.1f%%', ax=ax)
-        ax.set_ylabel("")
-        st.pyplot(fig)
+    # Bar chart for relevance score
+    st.subheader("Relevance Score per Resume")
+    fig2, ax2 = plt.subplots()
+    sns.barplot(x='relevance_score', y='file_name', data=df_resumes, ax=ax2, palette="viridis")
+    ax2.set_xlabel("Relevance Score (0-100)")
+    ax2.set_ylabel("Resume")
+    st.pyplot(fig2)
 
-    if show_score_chart:
-        st.subheader("Relevance Score per Resume")
-        fig2, ax2 = plt.subplots()
-        sns.barplot(
-            x='relevance_score', y='file_name', data=df_resumes,
-            ax=ax2, palette="viridis"
-        )
-        ax2.set_xlabel("Relevance Score (0-100)")
-        ax2.set_ylabel("Resume")
-        st.pyplot(fig2)
+    # Highlight missing skills for improvement
+    st.subheader("Suggested Improvements")
+    for idx, row in df_resumes.iterrows():
+        if row['missing_skills']:
+            st.markdown(f"**{row['file_name']}**: Missing skills -> {row['missing_skills']}")
+        else:
+            st.markdown(f"**{row['file_name']}**: All required skills present ✅")
 
-    if show_missing_skills:
-        st.subheader("Missing Skills per Resume")
-        for idx, row in df_resumes.iterrows():
-            if row['missing_skills']:
-                st.markdown(f"**{row['file_name']}**: Missing skills -> {row['missing_skills']}")
-            else:
-                st.markdown(f"**{row['file_name']}**: No missing skills ✅")
 
-    if show_matching_skills:
-        st.subheader("Matching Skills per Resume")
-        for idx, row in df_resumes.iterrows():
-            st.markdown(f"**{row['file_name']}**: Matching skills -> {row['matched_skills']}")
 
            
+
 
