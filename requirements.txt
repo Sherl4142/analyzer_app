@@ -1,0 +1,6 @@
+streamlit
+pandas
+pymupdf
+spacy
+matplotlib
+seaborn
