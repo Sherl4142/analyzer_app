@@ -1,6 +1,6 @@
-streamlit
-pandas
-pymupdf
-spacy
-matplotlib
-seaborn
+streamlit>=1.26.0
+pandas>=2.1.0
+PyMuPDF>=1.22.5
+spacy>=3.6.0
+matplotlib>=3.8.0
+seaborn>=0.12.2
